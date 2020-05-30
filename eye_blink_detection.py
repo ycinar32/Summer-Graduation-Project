@@ -1,11 +1,22 @@
+from __future__ import print_function
+from imutils.video.pivideostream import PiVideoStream
+from imutils.video import FPS
+from picamera.array import PiRGBArray
+from picamera import PiCamera
+import argparse
+import imutils
+import time
 import cv2
 import numpy as np
 import dlib
 from math import hypot
 
-cap = cv2.VideoCapture(0)
-
-print("Görüntü alınmaya başlandı.")
+ap = argparse.ArgumentParser()
+ap.add_argument("-n", "--num-frames", type=int, default=100,
+    help="# of frames to loop over for FPS test")
+ap.add_argument("-d", "--display", type=int, default=-1,
+    help="Whether or not frames should be displayed")
+args = vars(ap.parse_args())
 
 detector = dlib.get_frontal_face_detector()
 print("Predictor verileri alınmaya başlandı.")
@@ -14,8 +25,6 @@ print("Predictor verileri alındı.")
 
 def midpoint(p1 ,p2):
     return int((p1.x + p2.x)/2), int((p1.y + p2.y)/2)
-
-font = cv2.FONT_HERSHEY_PLAIN
 
 def get_blinking_ratio(eye_points, facial_landmarks):
     left_point = (facial_landmarks.part(eye_points[0]).x, facial_landmarks.part(eye_points[0]).y)
@@ -32,20 +41,28 @@ def get_blinking_ratio(eye_points, facial_landmarks):
     ratio = hor_line_lenght / ver_line_lenght
     return ratio
 
-
+#font = cv2.FONT_HERSHEY_PLAIN
+current_counter = 0
 counter = 0
-print("counter ayarlandı.")
+blinking_length = 0
+status = 1 #acık kapalı
+timer_boolean = False
+
+vs = PiVideoStream().start()
+time.sleep(2.0)
+
+
 
 while True:
-    print("while döhüsüne girildi.")
-    _, frame = cap.read()
+    tic = time.perf_counter();
+
+    frame = vs.read()
+    frame = imutils.resize(frame, width=400)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
+
     faces = detector(gray)
+    
     for face in faces:
-        #x, y = face.left(), face.top()
-        #x1, y1 = face.right(), face.bottom()
-        #cv2.rectangle(frame, (x, y), (x1, y1), (0, 255, 0), 2)
 
         landmarks = predictor(gray, face)
 
@@ -55,15 +72,24 @@ while True:
 
         if blinking_ratio > 5.7:
             counter = counter + 1
+            status = 0 # göz kapandı
             print(counter)
-            cv2.putText(frame, "BLINKING", (50, 150), font, 7, (255, 0, 0))
-
+            #cv2.putText(frame, "BLINKING", (50, 150), font, 2, (255, 0, 0))
+        else:
+            status = 1 # göz acildi
+            if current_counter != counter:
+                if (counter - current_counter) > 1:
+                    print("Uzun Göz Kırpma")
+                if (counter - current_counter) == 1:
+                    print("Kısa Göz Kırpma")
+            current_counter = counter
 
     cv2.imshow("Frame", frame)
-
-    key = cv2.waitKey(1)
-    if key == 27:
-        break
-
-cap.release()
+    key = cv2.waitKey(1) & 0xFF
+    
+    toc = time.perf_counter();
+    
+    print(1/(toc-tic))
+    
 cv2.destroyAllWindows()
+vs.stop()
