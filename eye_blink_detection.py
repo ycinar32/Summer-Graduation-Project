@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 from imutils.video.pivideostream import PiVideoStream
 from imutils.video import FPS
@@ -10,6 +11,11 @@ import cv2
 import numpy as np
 import dlib
 from math import hypot
+from RPi import GPIO
+import RPLCD
+
+GPIO.setmode(GPIO.BCM)
+lcd = RPLCD.CharLCD(numbering_mode=GPIO.BCM, rows=2, pin_rs=26, pin_e=19, pins_data=[21,16,10,22,13,6,5,11])
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-n", "--num-frames", type=int, default=100,
@@ -46,18 +52,22 @@ current_counter = 0
 counter = 0
 blinking_length = 0
 status = 1 #acık kapalı
+uzun_counter=0
+kisa_counter=0
 timer_boolean = False
+lcd_time = 0
 
 vs = PiVideoStream().start()
 time.sleep(2.0)
 
-
+tic = time.perf_counter();
+bitis_zamani = tic + 10.0
 
 while True:
-    tic = time.perf_counter();
+    prev_toc = tic = time.perf_counter();
 
     frame = vs.read()
-    frame = imutils.resize(frame, width=400)
+    frame = imutils.resize(frame, width=200)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     faces = detector(gray)
@@ -79,9 +89,11 @@ while True:
             status = 1 # göz acildi
             if current_counter != counter:
                 if (counter - current_counter) > 1:
-                    print("Uzun Göz Kırpma")
+                    uzun_counter = uzun_counter + 1
+                    #print("Uzun Göz Kırpma")
                 if (counter - current_counter) == 1:
-                    print("Kısa Göz Kırpma")
+                    #print("Kısa Göz Kırpma")
+                    kisa_counter = kisa_counter + 1
             current_counter = counter
 
     cv2.imshow("Frame", frame)
@@ -89,7 +101,49 @@ while True:
     
     toc = time.perf_counter();
     
-    print(1/(toc-tic))
+    if int(toc) - int(prev_toc) > 0 :
+            print (int(toc) - int(prev_toc))
+            lcd_time = lcd_time + 1 
     
+    if toc  < bitis_zamani :
+        print("tic          = " + str(toc))
+        print("bitis zamanı = " + str(bitis_zamani))
+        lcd.clear()
+        lcd.write_string("Uzun="+str(uzun_counter)+" Kisa="+str(kisa_counter) +"   "+ str(lcd_time))
+    
+    elif toc > bitis_zamani:
+        print("tic = " + str(toc))
+        print("bitis zamanı = " + str(bitis_zamani))
+        lcd.clear()
+        lcd.write_string("Uzun="+str(uzun_counter)+" Kisa="+str(kisa_counter)+"   " + "10")
+        time.sleep(1.0)
+        lcd.clear()
+        if kisa_counter == 1 and uzun_counter==0:
+            lcd.write_string("Kelime algilandi.")
+            time.sleep(2.0)
+            lcd.clear()
+            lcd.write_string("Kelime 1")
+            time.sleep(10.0)
+        if kisa_counter == 0 and uzun_counter==1:
+            lcd.write_string("Kelime algilandi.")
+            time.sleep(2.0)
+            lcd.clear()
+            lcd.write_string("Kelime 2")
+            time.sleep(10.0)
+        if kisa_counter == 1 and uzun_counter==1:
+            lcd.write_string("Kelime algilandi.")
+            time.sleep(2.0)
+            lcd.clear()
+            lcd.write_string("Kelime 3")
+            time.sleep(10.0)
+        if kisa_counter == 2 and uzun_counter==0:
+            lcd.write_string("Kelime algilandi.")
+            time.sleep(2.0)
+            lcd.clear()
+            lcd.write_string("Kelime 4")
+            time.sleep(10.0)
+ 
 cv2.destroyAllWindows()
 vs.stop()
+GPIO.cleanup()
+
