@@ -1,3 +1,4 @@
+
 from __future__ import print_function
 from imutils.video.pivideostream import PiVideoStream
 from imutils.video import FPS
@@ -12,6 +13,9 @@ import dlib
 from math import hypot
 from RPi import GPIO
 import RPLCD
+from pygame import mixer
+
+mixer.init()
 
 GPIO.setmode(GPIO.BCM)
 lcd = RPLCD.CharLCD(numbering_mode=GPIO.BCM, rows=2, pin_rs=26, pin_e=19, pins_data=[21,16,10,22,13,6,5,11])
@@ -67,7 +71,7 @@ while True:
     prev_toc = time.perf_counter();
     
     frame = vs.read()
-    frame = imutils.resize(frame, width=350)
+    frame = imutils.resize(frame, width=400)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
     faces = detector(gray)
@@ -79,23 +83,24 @@ while True:
         left_eye_ratio = get_blinking_ratio([36, 37, 38, 39, 40, 41], landmarks)
         right_eye_ratio = get_blinking_ratio([42, 43, 44, 45, 46, 47], landmarks)
         blinking_ratio = (left_eye_ratio + right_eye_ratio) / 2
-
-        if blinking_ratio > 5.7:          
-            if status == 1:
-                status = 0 # göz kapandı
-                x = time.perf_counter();
+        
+        if blinking_ratio > 4.5:
+            counter = counter + 1
+            status = 0 # göz kapandı
+            #print(counter)
+            #cv2.putText(frame, "BLINKING", (50, 150), font, 2, (255, 0, 0))
         else:
-            if status == 0:
-                status = 1 # göz acildi
-                y = time.perf_counter();
-                print(y - x)    
-                if y-x < 0.9:
-                    kisa_counter += 1
-                    print(kisa_counter)
-                elif (y-x >0.9) or (y-x == 0.9):
-                    uzun_counter += 1
-                    print(uzun_counter)
-
+            status = 1 # göz acildi
+            if current_counter != counter:
+                if (counter - current_counter) == 3 or (counter - current_counter) > 3:
+                    uzun_counter = uzun_counter + 1
+                    #print("Uzun Göz Kırpma")
+                if (counter - current_counter) < 3 :
+                    #print("Kısa Göz Kırpma")
+                    kisa_counter = kisa_counter + 1
+            current_counter = counter
+        
+        print(blinking_ratio)
     cv2.imshow("Frame", frame)
     key = cv2.waitKey(1) & 0xFF
     
@@ -125,76 +130,99 @@ while True:
             time.sleep(1.0)
             lcd.clear()
             if kisa_counter == 1 and uzun_counter==0:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 1")
+                lcd.write_string("      Evet      ")
+                sound = mixer.Sound('evet.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 0 and uzun_counter==1:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 2")
+                lcd.write_string("      Hayir      ")
+                sound = mixer.Sound('hayir.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 1 and uzun_counter==1:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 3")
+                lcd.write_string("    Aciktim     ")
+                sound = mixer.Sound('aciktim.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 2 and uzun_counter==0:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 4")
+                lcd.write_string("    Susadim     ")
+                sound = mixer.Sound('susadim.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 0 and uzun_counter==2:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 5")
+                lcd.write_string("   Agrim var    ")
+                sound = mixer.Sound('agrim_var.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 2 and uzun_counter==1:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 6")
+                lcd.write_string("     Usudum     ")
+                sound = mixer.Sound('usudum.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 1 and uzun_counter==2:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 7")
+                lcd.write_string("     Iyiyim     ")
+                sound = mixer.Sound('iyiyim.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 3 and uzun_counter==0:
-                lcd.write_string("Kelime algilandi")
+                lcd.write_string("Kelime Algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 8")
+                lcd.write_string("    Yoruldum    ")
+                sound = mixer.Sound('yoruldum.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 3 and uzun_counter==1:
                 lcd.write_string("Kelime algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 9")
+                lcd.write_string("    Tuvalet!    ")
+                sound = mixer.Sound('wc.wav')
+                sound.play()
                 time.sleep(3.0)
 
             elif kisa_counter == 4 and uzun_counter==0:
                 lcd.write_string("Kelime algilandi")
                 time.sleep(2.0)
                 lcd.clear()
-                lcd.write_string("Kelime 10")
+                lcd.write_string("     Bay Bay   ")
+                sound = mixer.Sound('bay.wav')
+                sound.play()
                 time.sleep(3.0)
+            else:
+                lcd.write_string("   Kelime yok   ")
+                time.sleep(2.0)
             tic = time.perf_counter();
-            bitis_zamani = tic + 10   
+            bitis_zamani = tic + 10 
             kisa_counter=0
             uzun_counter=0
             lcd_time = 0
@@ -204,3 +232,5 @@ while True:
 cv2.destroyAllWindows()
 vs.stop()
 GPIO.cleanup()
+
+
